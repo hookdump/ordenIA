@@ -1,18 +1,26 @@
 import { NextResponse } from 'next/server'
-import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/types/database'
 
-// Configure web-push
-if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+export async function POST(request: Request) {
+  // Check if push notifications are enabled
+  if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+    return NextResponse.json(
+      { error: 'Push notifications are not configured' },
+      { status: 503 }
+    )
+  }
+
+  // Dynamically import web-push to avoid build-time issues
+  const webpush = (await import('web-push')).default
+
+  // Configure web-push
   webpush.setVapidDetails(
     'mailto:notifications@cleanhome.ai',
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   )
-}
 
-export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
